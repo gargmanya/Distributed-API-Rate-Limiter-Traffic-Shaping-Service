@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Rate Limiter — Live Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  :root{
+    --bg:#0B0F17; --card:#121826; --line:#232C3D; --text:#EDEEF2;
+    --dim:#8890A0; --amber:#E8A33D; --green:#4ADE80; --red:#F87171;
+    --mono:'SFMono-Regular',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--mono);}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 20px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:28px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;}
+  .stat-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+  .stat-value{font-size:24px;font-weight:700;color:var(--amber);}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px;margin-bottom:16px;}
+  .panel-title{font-size:12px;color:var(--dim);text-transform:uppercase;margin-bottom:14px;}
+  svg{width:100%;height:180px;display:block;}
+  .legend{display:flex;gap:18px;font-size:12px;color:var(--dim);margin-top:10px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block;}
+  .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim);}
+  .dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
+  code{background:var(--card);padding:1px 5px;border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rate Limiter — Live Traffic</h1>
+  <div class="sub">
+    <span class="status-badge"><span class="dot" id="connDot"></span><span id="connLabel">connecting…</span></span>
+    &nbsp;—&nbsp; last 60s window
+  </div>
+
+  <div class="grid">
+    <div class="stat">
+      <div class="stat-label">Req/sec (avg)</div>
+      <div class="stat-value" id="statReqSec">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Allowed (60s)</div>
+      <div class="stat-value" id="statAllowed" style="color:var(--green)">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Blocked (60s)</div>
+      <div class="stat-value" id="statBlocked" style="color:var(--red)">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">p99 decision latency</div>
+      <div class="stat-value" id="statP99">0ms</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Request rate — last 60 seconds</div>
+    <svg id="chart" viewBox="0 0 940 180"></svg>
+    <div class="legend">
+      <span><span class="sw" style="background:#4ADE80"></span>Allowed</span>
+      <span><span class="sw" style="background:#F87171"></span>Blocked</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Generate traffic</div>
+    <div style="color:var(--dim);font-size:13px;line-height:1.6;">
+      No traffic yet? Hit the protected endpoint from another terminal:<br/>
+      <code>curl -H "x-api-key: demo" http://localhost:3000/api/resource</code><br/>
+      or run the load test: <code>npm run load-test</code>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const SVG_W = 940, SVG_H = 180, PAD = 20;
+  const svg = document.getElementById('chart');
+  const connDot = document.getElementById('connDot');
+  const connLabel = document.getElementById('connLabel');
+
+  function render(snapshot) {
+    document.getElementById('statReqSec').textContent = snapshot.reqPerSec || 0;
+    document.getElementById('statAllowed').textContent = snapshot.totalAllowed || 0;
+    document.getElementById('statBlocked').textContent = snapshot.totalBlocked || 0;
+    document.getElementById('statP99').textContent = (snapshot.p99LatencyMs || 0) + 'ms';
+
+    const series = snapshot.series || [];
+    if (series.length === 0) { svg.innerHTML = ''; return; }
+
+    const maxVal = Math.max(1, ...series.map(p => p.allowed + p.blocked));
+    const stepX = (SVG_W - PAD * 2) / (series.length - 1 || 1);
+
+    function pathFor(key, color) {
+      const points = series.map((p, i) => {
+        const x = PAD + i * stepX;
+        const y = SVG_H - PAD - (p[key] / maxVal) * (SVG_H - PAD * 2);
+        return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      return '<path d="' + points.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="2"/>';
+    }
+
+    svg.innerHTML =
+      '<line x1="' + PAD + '" y1="' + (SVG_H - PAD) + '" x2="' + (SVG_W - PAD) + '" y2="' + (SVG_H - PAD) + '" stroke="#232C3D"/>' +
+      pathFor('allowed', '#4ADE80') +
+      pathFor('blocked', '#F87171');
+  }
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(proto + '//' + location.host + '/ws/metrics');
+
+    ws.onopen = () => { connDot.classList.add('live'); connLabel.textContent = 'connected'; };
+    ws.onclose = () => {
+      connDot.classList.remove('live'); connLabel.textContent = 'reconnecting…';
+      setTimeout(connect, 2000);
+    };
+    ws.onerror = () => ws.close();
+    ws.onmessage = (evt) => {
+      try { render(JSON.parse(evt.data)); } catch (e) {}
+    };
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>

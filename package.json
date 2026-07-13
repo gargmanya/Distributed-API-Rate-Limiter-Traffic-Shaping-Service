@@ -1,0 +1,29 @@
+{
+  "name": "distributed-rate-limiter",
+  "version": "1.0.0",
+  "description": "Distributed API rate limiter and traffic shaping service with token bucket, sliding window log, and sliding window counter algorithms, Redis-backed distributed state, circuit breaker pattern, and a real-time monitoring dashboard.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "load-test": "node test/load-test.js",
+    "demo": "node src/demo-target-server.js"
+  },
+  "keywords": ["rate-limiter", "redis", "distributed-systems", "circuit-breaker", "token-bucket"],
+  "author": "Manya Garg",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "ws": "^8.18.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "autocannon": "^7.15.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
