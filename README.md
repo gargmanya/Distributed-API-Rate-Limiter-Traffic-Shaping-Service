@@ -66,8 +66,8 @@ npm run load-test              # watch the circuit open in the server logs after
 ## Quickstart
 
 ```bash
-git clone <this-repo>
-cd distributed-rate-limiter
+git clone https://github.com/gargmanya/Distributed-API-Rate-Limiter-Traffic-Shaping-Service.git
+cd Distributed-API-Rate-Limiter-Traffic-Shaping-Service
 npm install
 
 # Redis required — either:
