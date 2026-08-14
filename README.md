@@ -4,6 +4,17 @@ A standalone rate-limiting service implementing three algorithms from scratch â€
 
 Built to work correctly across multiple horizontally-scaled instances of an API sitting behind a load balancer, not just on a single process.
 
+## ðŸš€ Live Demo
+
+**Dashboard:**  
+https://distributed-api-rate-limiter-traffic-shaping-ser-production.up.railway.app/
+
+**Health Check:**  
+https://distributed-api-rate-limiter-traffic-shaping-ser-production.up.railway.app/health
+
+**Metrics API:**  
+https://distributed-api-rate-limiter-traffic-shaping-ser-production.up.railway.app/metrics
+
 ## Why three algorithms
 
 Each makes a different tradeoff, and a real production rate limiter should let you pick per use case:
